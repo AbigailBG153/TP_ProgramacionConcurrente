@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subir y Procesar CSV</title>
+    <style>
+        .progress-container {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 30px;
+            background-color: #4caf50;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            border-radius: 5px;
+            transition: width 0.4s ease;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Seleccionar Algoritmo</h2>
+<label for="algorithm">Algoritmo:</label>
+<select id="algorithm" required>
+    <option value="">Seleccione un algoritmo</option>
+    <option value="svm">SVM</option>
+    <option value="random_forest">Random Forest</option>
+</select>
+<button id="select-algorithm-button">Continuar</button>
+
+<!-- Sección para subir el archivo -->
+<div id="upload-section" style="display: none;">
+    <h2>Subir y Procesar Archivo CSV</h2>
+    <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" id="file-input" name="file" accept=".csv" required>
+        <button type="submit">Subir Archivo</button>
+    </form>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="uploadProgressBar">0%</div>
+    </div>
+</div>
+
+<!-- Sección para particionar los datos -->
+<div id="partition-section" style="display: none;">
+    <h2>Particionar Datos</h2>
+    <label for="test-size">Tamaño del conjunto de prueba (0 a 1):</label>
+    <input type="number" id="test-size" name="test-size" step="0.01" min="0" max="1" value="0.2" required>
+    <button id="partition-button">Particionar Datos</button>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="partitionProgressBar">0%</div>
+    </div>
+</div>
+
+<!-- Sección para entrenamiento y predicción -->
+<div id="train-section" style="display: none; margin-top: 20px;">
+    <h3>Parámetros para Entrenamiento y Predicción</h3>
+
+    <!-- Parámetros para SVM -->
+    <div id="svm-params" style="display: none;">
+        <label for="learning-rate">Learning Rate:</label>
+        <input type="number" id="learning-rate" name="learning-rate" step="0.001" min="0" value="0.01" required>
+
+        <label for="lambda">Lambda:</label>
+        <input type="number" id="lambda" name="lambda" step="0.001" min="0" value="0.1" required>
+
+        <label for="epochs">Epochs:</label>
+        <input type="number" id="epochs" name="epochs" min="1" value="100" required>
+    </div>
+
+    <!-- Parámetros para Random Forest -->
+    <div id="rf-params" style="display: none;">
+        <label for="n-trees">Número de Árboles:</label>
+        <input type="number" id="n-trees" name="n-trees" min="1" value="100" required>
+
+        <label for="max-depth">Profundidad Máxima:</label>
+        <input type="number" id="max-depth" name="max-depth" min="1" value="20" required>
+
+        <label for="min-size">Tamaño Mínimo:</label>
+        <input type="number" id="min-size" name="min-size" min="1" value="1" required>
+    </div>
+
+    <button id="train-predict-button">Entrenar y Predecir</button>
+
+    <h2>Entrenamiento del modelo</h2>
+    <div class="progress-container">
+        <div class="progress-bar" id="trainProgressBar">0%</div>
+    </div>
+
+    <h2>Predicción del modelo</h2>
+    <div class="progress-container">
+        <div class="progress-bar" id="predictProgressBar">0%</div>
+    </div>
+
+    <h2>Precisión:</h2>
+    <p id="accuracy">0%</p>
+</div>
+
+<script>
+    const algorithmSelect = document.getElementById('algorithm');
+    const selectAlgorithmButton = document.getElementById('select-algorithm-button');
+    const uploadSection = document.getElementById('upload-section');
+    const partitionSection = document.getElementById('partition-section');
+    const trainSection = document.getElementById('train-section');
+    const uploadProgressBar = document.getElementById('uploadProgressBar');
+    const partitionProgressBar = document.getElementById('partitionProgressBar');
+    const trainProgressBar = document.getElementById('trainProgressBar');
+    const predictProgressBar = document.getElementById('predictProgressBar');
+    const svmParams = document.getElementById('svm-params');
+    const rfParams = document.getElementById('rf-params');
+    const accuracyDisplay = document.getElementById('accuracy');
+    let uploadedFilePath = '';
+    let selectedAlgorithm = '';
+
+    // Mostrar el formulario para subir el archivo después de seleccionar el algoritmo
+    selectAlgorithmButton.addEventListener('click', function () {
+        selectedAlgorithm = algorithmSelect.value;
+        if (!selectedAlgorithm) {
+            alert("Seleccione un algoritmo para continuar.");
+            return;
+        }
+        uploadSection.style.display = 'block';
+    });
+
+    // Mostrar los parámetros correspondientes según el algoritmo seleccionado
+    algorithmSelect.addEventListener('change', function () {
+        if (algorithmSelect.value === 'svm') {
+            svmParams.style.display = 'block';
+            rfParams.style.display = 'none';
+        } else {
+            svmParams.style.display = 'none';
+            rfParams.style.display = 'block';
+        }
+    });
+
+    // Subir archivo y mostrar barra de progreso
+    document.getElementById('upload-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        const fileInput = document.getElementById('file-input');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Archivo subido:', data);
+            uploadedFilePath = data.filepath;
+            startLoadingData(uploadedFilePath);
+        })
+        .catch(error => {
+            console.error('Error al subir el archivo:', error);
+        });
+    });
+
+    function startLoadingData(filepath) {
+        const socket = new WebSocket('ws://' + window.location.host + '/ws?filepath=' + encodeURIComponent(filepath));
+
+        socket.onopen = () => {
+            console.log('Conectado al servidor WebSocket para cargar datos');
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.progress) {
+                uploadProgressBar.style.width = data.progress + '%';
+                uploadProgressBar.textContent = Math.floor(data.progress) + '%';
+            }
+            if (data.status === "Carga completada") {
+                socket.close();
+                partitionSection.style.display = 'block';
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.error('Error en el WebSocket:', error);
+        };
+
+        socket.onclose = () => {
+            console.log('Conexión WebSocket cerrada tras cargar datos');
+        };
+    }
+
+    document.getElementById('partition-button').addEventListener('click', function () {
+        const testSize = parseFloat(document.getElementById('test-size').value);
+        if (isNaN(testSize) || testSize <= 0 || testSize >= 1) {
+            alert("Por favor, ingrese un tamaño del conjunto de prueba válido entre 0 y 1.");
+            return;
+        }
+        startPartitioningData(uploadedFilePath, testSize);
+    });
+
+    function startPartitioningData(filepath, testSize) {
+        const socket = new WebSocket(`ws://${window.location.host}/partition?filepath=${encodeURIComponent(filepath)}&testSize=${testSize}&algorithm=${selectedAlgorithm}`);
+
+        socket.onopen = () => {
+            console.log('Conectado al servidor WebSocket para particionar datos');
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.progress) {
+                partitionProgressBar.style.width = data.progress + '%';
+                partitionProgressBar.textContent = Math.floor(data.progress) + '%';
+            }
+            if (data.status === "Partición completada") {
+                socket.close();
+                trainSection.style.display = 'block';
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.error('Error en el WebSocket:', error);
+        };
+
+        socket.onclose = () => {
+            console.log('Conexión WebSocket cerrada tras particionar datos');
+        };
+    }
+
+    document.getElementById('train-predict-button').addEventListener('click', function () {
+        let params = `algorithm=${selectedAlgorithm}`;
+
+        if (selectedAlgorithm === 'svm') {
+            const learningRate = parseFloat(document.getElementById('learning-rate').value);
+            const lambda = parseFloat(document.getElementById('lambda').value);
+            const epochs = parseInt(document.getElementById('epochs').value, 10);
+            if (isNaN(learningRate) || isNaN(lambda) || isNaN(epochs) || epochs < 1) {
+                alert("Por favor, ingrese valores válidos para los parámetros de SVM.");
+                return;
+            }
+            params += `&learningRate=${learningRate}&lambda=${lambda}&epochs=${epochs}`;
+        } else {
+            const nTrees = parseInt(document.getElementById('n-trees').value, 10);
+            const maxDepth = parseInt(document.getElementById('max-depth').value, 10);
+            const minSize = parseInt(document.getElementById('min-size').value, 10);
+            if (isNaN(nTrees) || nTrees < 1 || isNaN(maxDepth) || maxDepth < 1 || isNaN(minSize) || minSize < 1) {
+                alert("Por favor, ingrese valores válidos para los parámetros de Random Forest.");
+                return;
+            }
+            params += `&nTrees=${nTrees}&maxDepth=${maxDepth}&minSize=${minSize}`;
+        }
+
+        startTraining(params);
+    });
+
+    function startTraining(params) {
+        const socket = new WebSocket(`ws://${window.location.host}/train?${params}`);
+
+        socket.onopen = () => {
+            console.log('Conectado al servidor WebSocket para entrenar');
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.progress) {
+                trainProgressBar.style.width = data.progress + '%';
+                trainProgressBar.textContent = Math.floor(data.progress) + '%';
+            }
+            if (data.status === "Entrenamiento completado") {
+                socket.close();
+                startPrediction();
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.error('Error en el WebSocket:', error);
+        };
+
+        socket.onclose = () => {
+            console.log('Conexión WebSocket cerrada tras entrenar');
+        };
+    }
+
+    function startPrediction() {
+        const socket = new WebSocket(`ws://${window.location.host}/prediction`);
+
+        socket.onopen = () => {
+            console.log('Conectado al servidor WebSocket para predecir');
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.progress) {
+                predictProgressBar.style.width = data.progress + '%';
+                predictProgressBar.textContent = Math.floor(data.progress) + '%';
+            }
+            if (data.status === "Predicción completada") {
+                socket.close();
+                accuracyDisplay.textContent = `${data.accuracy.toFixed(2)}%`;
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.error('Error en el WebSocket:', error);
+        };
+
+        socket.onclose = () => {
+            console.log('Conexión WebSocket cerrada tras predecir');
+        };
+    }
+</script>
+
+</body>
+</html>
