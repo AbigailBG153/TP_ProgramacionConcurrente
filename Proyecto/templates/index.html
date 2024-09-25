@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subir y Procesar CSV</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin: 0;
+            background-color: #f4f4f9;
+            font-family: Arial, sans-serif;
+            overflow-y: auto; /* Permite desplazamiento vertical si es necesario */
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .container {
+            display: flex;
+            max-width: 800px;
+            width: 100%;
+            gap: 20px;
+        }
+        .card {
+            background: #ffffff;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .left-card {
+            flex: 1;
+            background-color: #2c3e50;
+            color: white;
+        }
+        .right-card {
+            flex: 2;
+            background-color: white;
+        }
+        h2, h3 {
+            margin: 0;
+        }
+        input[type="number"],
+        input[type="file"],
+        select {
+            margin-top: 10px;
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .progress-container {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 30px;
+            background-color: #4caf50;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            border-radius: 5px;
+            transition: width 0.4s ease;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        /* Estilos para el modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 300px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<!-- Modal de éxito -->
+<div id="successModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="closeModal">&times;</span>
+        <p>¡Envío satisfactorio!</p>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Tarjeta izquierda para seleccionar el algoritmo y datos de simulación -->
+    <div class="card left-card">
+        <h2>Seleccionar Algoritmo</h2>
+        <label for="algorithm">Algoritmo:</label>
+        <select id="algorithm" required>
+            <option value="">Seleccione un algoritmo</option>
+            <option value="svm">SVM</option>
+            <option value="random_forest">Random Forest</option>
+        </select>
+        <button id="select-algorithm-button">Continuar</button>
+
+        <h3>Datos de Simulación</h3>
+        <form id="simulationForm" class="form-layout">
+            <div class="form-group">
+                <label for="empresa">Seleccione la Empresa:</label>
+                <select name="empresa" id="empresa"></select>
+            </div>
+            <div class="form-group">
+                <label for="departamento">Departamento:</label>
+                <select name="departamento" id="departamento"></select>
+            </div>
+            <div class="form-group">
+                <label for="provincia">Provincia:</label>
+                <select name="provincia" id="provincia"></select>
+            </div>
+            <div class="form-group">
+                <label for="distrito">Distrito:</label>
+                <select name="distrito" id="distrito"></select>
+            </div>
+            <div class="form-group">
+                <label for="fecha_consumo_desde">Fecha Desde:</label>
+                <input type="date" id="fecha_consumo_desde" name="fecha_consumo_desde">
+            </div>
+            <div class="form-group">
+                <label for="fecha_consumo_hasta">Fecha Hasta:</label>
+                <input type="date" id="fecha_consumo_hasta" name="fecha_consumo_hasta">
+            </div>
+            <div class="form-group">
+                <label for="importe">Importe:</label>
+                <input type="number" step="0.01" id="importe" name="importe">
+            </div>
+            <div class="form-group">
+                <label for="consumo">Consumo:</label>
+                <input type="number" step="0.01" id="consumo" name="consumo">
+            </div>
+            <div class="form-group">
+                <label for="tarifa">Tarifa:</label>
+                <select id="tarifa" name="tarifa">
+                    <option value="AT2">AT2</option>
+                    <option value="BT3">BT3</option>
+                    <option value="BT4">BT4</option>
+                    <option value="BT5A">BT5A</option>
+                    <option value="BT5B">BT5B</option>
+                    <option value="BT5C">BT5C</option>
+                    <option value="BT5D">BT5D</option>
+                    <option value="BT5E">BT5E</option>
+                    <option value="BT6">BT6</option>
+                    <option value="BT8">BT8</option>
+                    <option value="rvT2E">rvT2E</option>
+                    <option value="MT4">MT4</option>
+                </select>
+            </div>
+            <button type="submit">Enviar Datos de Simulación</button>
+        </form>
+    </div>
+
+    <!-- Tarjeta derecha con las demás acciones -->
+    <div class="card right-card">
+        <!-- Sección para subir el archivo -->
+        <div id="upload-section" style="display: none;">
+            <h2>Subir y Procesar Archivo CSV</h2>
+            <form id="upload-form" enctype="multipart/form-data">
+                <input type="file" id="file-input" name="file" accept=".csv" required>
+                <button type="submit">Subir Archivo</button>
+            </form>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="uploadProgressBar">0%</div>
+            </div>
+        </div>
+
+        <!-- Sección para particionar los datos -->
+        <div id="partition-section" style="display: none;">
+            <h2>Particionar Datos</h2>
+            <label for="test-size">Tamaño del conjunto de prueba (0 a 1):</label>
+            <input type="number" id="test-size" name="test-size" step="0.01" min="0" max="1" value="0.2" required>
+            <button id="partition-button">Particionar Datos</button>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="partitionProgressBar">0%</div>
+            </div>
+        </div>
+
+        <!-- Sección para entrenamiento y predicción -->
+        <div id="train-section" style="display: none;">
+            <h3>Parámetros para Entrenamiento y Predicción</h3>
+
+            <label for="n-estimators">Número de Estimadores:</label>
+            <input type="number" id="n-estimators" name="n-estimators" value="100" min="1">
+
+            <button id="train-button">Entrenar Modelo</button>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="trainProgressBar">0%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const algorithmSelect = document.getElementById('algorithm');
+    const selectAlgorithmButton = document.getElementById('select-algorithm-button');
+    const uploadSection = document.getElementById('upload-section');
+    const partitionSection = document.getElementById('partition-section');
+    const trainSection = document.getElementById('train-section');
+    const uploadProgressBar = document.getElementById('uploadProgressBar');
+    const partitionProgressBar = document.getElementById('partitionProgressBar');
+    const trainProgressBar = document.getElementById('trainProgressBar');
+    const predictProgressBar = document.getElementById('predictProgressBar');
+    const svmParams = document.getElementById('svm-params');
+    const rfParams = document.getElementById('rf-params');
+    const accuracyDisplay = document.getElementById('accuracy');
+    let uploadedFilePath = '';
+    let selectedAlgorithm = '';
+
+    // Mostrar el formulario para subir el archivo después de seleccionar el algoritmo
+    selectAlgorithmButton.addEventListener('click', function () {
+        selectedAlgorithm = algorithmSelect.value;
+        if (!selectedAlgorithm) {
+            alert("Seleccione un algoritmo para continuar.");
+            return;
+        }
+        uploadSection.style.display = 'block';
+    });
+
+    // Mostrar los parámetros correspondientes según el algoritmo seleccionado
+    algorithmSelect.addEventListener('change', function () {
+        if (algorithmSelect.value === 'svm') {
+            svmParams.style.display = 'block';
+            rfParams.style.display = 'none';
+        } else {
+            svmParams.style.display = 'none';
+            rfParams.style.display = 'block';
+        }
+    });
+
+    // Subir archivo y mostrar barra de progreso
+    document.getElementById('upload-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        const fileInput = document.getElementById('file-input');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Archivo subido:', data);
+            uploadedFilePath = data.filepath;
+            startLoadingData(uploadedFilePath);
+        })
+        .catch(error => {
+            console.error('Error al subir el archivo:', error);
+        });
+    });
+
+    function startLoadingData(filepath) {
+        const socket = new WebSocket('ws://' + window.location.host + '/ws?filepath=' + encodeURIComponent(filepath));
+
+        socket.onopen = () => {
+            console.log('Conectado al servidor WebSocket para cargar datos');
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.progress) {
+                uploadProgressBar.style.width = data.progress + '%';
+                uploadProgressBar.textContent = Math.floor(data.progress) + '%';
+            }
+            if (data.status === "Carga completada") {
+                socket.close();
+                partitionSection.style.display = 'block';
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.error('Error en el WebSocket:', error);
+        };
+
+        socket.onclose = () => {
+            console.log('Conexión WebSocket cerrada tras cargar datos');
+        };
+    }
+
+    document.getElementById('partition-button').addEventListener('click', function () {
+        const testSize = parseFloat(document.getElementById('test-size').value);
+        if (isNaN(testSize) || testSize <= 0 || testSize >= 1) {
+            alert("Por favor, ingrese un tamaño del conjunto de prueba válido entre 0 y 1.");
+            return;
+        }
+        startPartitioningData(uploadedFilePath, testSize);
+    });
+
+    function startPartitioningData(filepath, testSize) {
+        const socket = new WebSocket(`ws://${window.location.host}/partition?filepath=${encodeURIComponent(filepath)}&testSize=${testSize}&algorithm=${selectedAlgorithm}`);
+
+        socket.onopen = () => {
+            console.log('Conectado al servidor WebSocket para particionar datos');
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.progress) {
+                partitionProgressBar.style.width = data.progress + '%';
+                partitionProgressBar.textContent = Math.floor(data.progress) + '%';
+            }
+            if (data.status === "Partición completada") {
+                socket.close();
+                trainSection.style.display = 'block';
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.error('Error en el WebSocket:', error);
+        };
+
+        socket.onclose = () => {
+            console.log('Conexión WebSocket cerrada tras particionar datos');
+        };
+    }
+
+    document.getElementById('train-predict-button').addEventListener('click', function () {
+        let params = `algorithm=${selectedAlgorithm}`;
+
+        if (selectedAlgorithm === 'svm') {
+            const learningRate = parseFloat(document.getElementById('learning-rate').value);
+            const lambda = parseFloat(document.getElementById('lambda').value);
+            const epochs = parseInt(document.getElementById('epochs').value, 10);
+            if (isNaN(learningRate) || isNaN(lambda) || isNaN(epochs) || epochs < 1) {
+                alert("Por favor, ingrese valores válidos para los parámetros de SVM.");
+                return;
+            }
+            params += `&learningRate=${learningRate}&lambda=${lambda}&epochs=${epochs}`;
+        } else {
+            const nTrees = parseInt(document.getElementById('n-trees').value, 10);
+            const maxDepth = parseInt(document.getElementById('max-depth').value, 10);
+            const minSize = parseInt(document.getElementById('min-size').value, 10);
+            if (isNaN(nTrees) || nTrees < 1 || isNaN(maxDepth) || maxDepth < 1 || isNaN(minSize) || minSize < 1) {
+                alert("Por favor, ingrese valores válidos para los parámetros de Random Forest.");
+                return;
+            }
+            params += `&nTrees=${nTrees}&maxDepth=${maxDepth}&minSize=${minSize}`;
+        }
+
+        startTraining(params);
+    });
+
+    function startTraining(params) {
+        const socket = new WebSocket(`ws://${window.location.host}/train?${params}`);
+
+        socket.onopen = () => {
+            console.log('Conectado al servidor WebSocket para entrenar');
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.progress) {
+                trainProgressBar.style.width = data.progress + '%';
+                trainProgressBar.textContent = Math.floor(data.progress) + '%';
+            }
+            if (data.status === "Entrenamiento completado") {
+                socket.close();
+                startPrediction();
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.error('Error en el WebSocket:', error);
+        };
+
+        socket.onclose = () => {
+            console.log('Conexión WebSocket cerrada tras entrenar');
+        };
+    }
+
+    function startPrediction() {
+        const socket = new WebSocket(`ws://${window.location.host}/prediction`);
+
+        socket.onopen = () => {
+            console.log('Conectado al servidor WebSocket para predecir');
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log(data)
+            if (data.progress) {
+                predictProgressBar.style.width = data.progress + '%';
+                predictProgressBar.textContent = Math.floor(data.progress) + '%';
+            }
+            if (data.status === "Predicción completada") {
+                socket.close();
+                accuracyDisplay.textContent = `${data.accuracy.toFixed(2)}%`;
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.error('Error en el WebSocket:', error);
+        };
+
+        socket.onclose = () => {
+            console.log('Conexión WebSocket cerrada tras predecir');
+        };
+    }
+</script>
+<script>
+    const empresaSelect = document.getElementById('empresa');
+    const departamentoSelect = document.getElementById('departamento');
+    const provinciaSelect = document.getElementById('provincia');
+    const distritoSelect = document.getElementById('distrito');
+    const successModal = document.getElementById('successModal');
+    const closeModal = document.getElementById('closeModal');
+
+    // Cargar las empresas al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/api/empresas')
+            .then(response => response.json())
+            .then(data => {
+                loadEmpresas(data.empresas);
+            })
+            .catch(error => console.error('Error al cargar empresas:', error));
+    });
+
+    function loadEmpresas(empresas) {
+        empresaSelect.innerHTML = '<option value="">Seleccione...</option>';
+        empresas.forEach(empresa => {
+            const option = document.createElement('option');
+            option.value = empresa;
+            option.textContent = empresa;
+            empresaSelect.appendChild(option);
+        });
+    }
+
+    empresaSelect.addEventListener('change', function () {
+        const selectedEmpresa = empresaSelect.value;
+        if (selectedEmpresa) {
+            fetch(`/api/departamentos?empresa=${selectedEmpresa}`)
+                .then(response => response.json())
+                .then(data => {
+                    loadDepartments(data.departamentos);
+                })
+                .catch(error => console.error('Error al cargar departamentos:', error));
+        }
+    });
+
+    function loadDepartments(departments) {
+        departamentoSelect.innerHTML = '<option value="">Seleccione...</option>';
+        departments.forEach(department => {
+            const option = document.createElement('option');
+            option.value = department;
+            option.textContent = department;
+            departamentoSelect.appendChild(option);
+        });
+    }
+
+    departamentoSelect.addEventListener('change', function () {
+        const selectedDepartment = departamentoSelect.value;
+        const selectedEmpresa = empresaSelect.value;
+        if (selectedDepartment) {
+            fetch(`/api/provincias?empresa=${selectedEmpresa}&departamento=${selectedDepartment}`)
+                .then(response => response.json())
+                .then(data => {
+                    loadProvinces(data.provincias);
+                })
+                .catch(error => console.error('Error al cargar provincias:', error));
+        }
+    });
+
+    function loadProvinces(provinces) {
+        provinciaSelect.innerHTML = '<option value="">Seleccione...</option>';
+        provinces.forEach(province => {
+            const option = document.createElement('option');
+            option.value = province;
+            option.textContent = province;
+            provinciaSelect.appendChild(option);
+        });
+    }
+
+    provinciaSelect.addEventListener('change', function () {
+        const selectedProvince = provinciaSelect.value;
+        const selectedEmpresa = empresaSelect.value;
+        const selectedDepartment = departamentoSelect.value;
+        if (selectedProvince) {
+            fetch(`/api/distritos?empresa=${selectedEmpresa}&departamento=${selectedDepartment}&provincia=${selectedProvince}`)
+                .then(response => response.json())
+                .then(data => {
+                    loadDistricts(data.distritos);
+                })
+                .catch(error => console.error('Error al cargar distritos:', error));
+        }
+    });
+
+    function loadDistricts(districts) {
+        distritoSelect.innerHTML = '<option value="">Seleccione...</option>';
+        districts.forEach(district => {
+            const option = document.createElement('option');
+            option.value = district;
+            option.textContent = district;
+            distritoSelect.appendChild(option);
+        });
+    }
+
+    // Manejar el envío del formulario de parámetros
+    document.getElementById('forestParamsForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        const numArboles = document.getElementById('num_arboles').value;
+        const maxProfundidad = document.getElementById('max_profundidad').value;
+
+        console.log('Parámetros Random Forest:', { numArboles, maxProfundidad });
+
+        // Muestra el modal de éxito
+        showModal();
+    });
+
+    // Manejar el envío del formulario de simulación
+    document.getElementById('simulationForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        const empresa = empresaSelect.value;
+        const departamento = departamentoSelect.value;
+        const provincia = provinciaSelect.value;
+        const distrito = distritoSelect.value;
+        const fechaConsumoDesde = document.getElementById('fecha_consumo_desde').value;
+        const fechaConsumoHasta = document.getElementById('fecha_consumo_hasta').value;
+        const importe = document.getElementById('importe').value;
+        const consumo = document.getElementById('consumo').value;
+        const tarifa = document.getElementById('tarifa').value;
+
+        // Enviar los datos al backend
+        fetch('/submit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                empresa: empresa,
+                departamento: departamento, // Asegúrate de incluir el departamento
+                provincia: provincia,       // Asegúrate de incluir la provincia
+                distrito: distrito,         // Asegúrate de incluir el distrito
+                num_arboles: document.getElementById('num_arboles').value,
+                max_profundidad: document.getElementById('max_profundidad').value,
+                fecha_consumo_desde: fechaConsumoDesde,
+                fecha_consumo_hasta: fechaConsumoHasta,
+                importe: importe,
+                consumo: consumo,
+                tarifa: tarifa,
+            }),
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Datos enviados:', data);
+                showModal(); // Muestra el modal de éxito
+            })
+            .catch(error => console.error('Error al enviar datos:', error));
+    });
+
+    // Mostrar el modal de éxito
+    function showModal() {
+        successModal.style.display = 'flex';
+    }
+
+    // Cerrar el modal cuando se hace clic en la "X"
+    closeModal.addEventListener('click', function () {
+        successModal.style.display = 'none';
+    });
+
+    // Cerrar el modal cuando se hace clic fuera del contenido del modal
+    window.addEventListener('click', function (event) {
+        if (event.target === successModal) {
+            successModal.style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>
