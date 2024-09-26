@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subida de Datos y Entrenamiento SVM</title>
+    <style>
+        /* Estilos generales */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #121212;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 1200px;
+            margin: 20px auto;
+        }
+
+        /* Estilos de las tarjetas */
+        .card {
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            margin: 10px;
+            width: 45%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card h2 {
+            color: #ffffff;
+            font-size: 20px;
+            border-bottom: 2px solid #ff47ab;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .card form label {
+            display: block;
+            margin: 10px 0 5px;
+            font-size: 14px;
+            color: #8a2be2; /* Cambia a morado */
+
+        }
+
+        .card input[type="text"], .card input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #333;
+            border: 1px solid #444;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .card button {
+            width: 100%;
+            background: linear-gradient(90deg, #ff47ab, #ff8d47);
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: linear-gradient(90deg, #ff8d47, #ff47ab);
+        }
+
+        .resultados {
+            background-color: #282828;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            margin-top: 10px;
+            width: 100%;
+            color: #d1d1d1;
+        }
+
+        /* Estilo para las barras de progreso */
+        .progress-container {
+            width: 100%;
+            background-color: #444;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            height: 20px;
+            position: relative;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00c6ff, #0072ff);
+            transition: width 0.4s ease;
+        }
+
+        .progress-label {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 12px;
+        }
+
+        .glow {
+            color: #ff47ab;
+            text-shadow: 0 0 10px rgba(255, 71, 171, 0.8), 0 0 20px rgba(255, 71, 171, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Tarjeta izquierda para subir los datos -->
+        <div class="card">
+            <h2>Subir Datos del Proveedor</h2>
+            <form id="data-form">
+                <label for="ruc_proveedor">RUC_PROVEEDOR:</label>
+                <input type="text" id="ruc_proveedor" name="ruc_proveedor">
+
+                <label for="tipo_procedimiento">TIPO_PROCEDIMIENTO:</label>
+                <input type="text" id="tipo_procedimiento" name="tipo_procedimiento">
+
+                <label for="sub_total">SUB_TOTAL:</label>
+                <input type="text" id="sub_total" name="sub_total">
+
+                <label for="igv">IGV:</label>
+                <input type="text" id="igv" name="igv">
+
+                <label for="acuerdo_marco">ACUERDO_MARCO:</label>
+                <input type="text" id="acuerdo_marco" name="acuerdo_marco">
+
+                <label for="year">Año:</label>
+                <input type="text" id="year" name="year">
+
+                <label for="month">Mes:</label>
+                <input type="text" id="month" name="month">
+
+                <label for="day">Día:</label>
+                <input type="text" id="day" name="day">
+
+                <button type="submit">Subir Datos</button>
+            </form>
+        </div>
+
+        <!-- Tarjeta derecha para el entrenamiento SVM -->
+        <div class="card">
+            <h2>Entrenamiento del Modelo SVM</h2>
+
+            <form id="svm-form">
+                <label for="alpha">Tasa de aprendizaje (Alpha):</label>
+                <input type="text" id="alpha" name="alpha" value="0.01" placeholder="Introduce el valor de alpha">
+        
+                <label for="epochs">Épocas:</label>
+                <input type="text" id="epochs" name="epochs" value="1000" placeholder="Introduce el número de épocas">
+        
+                <label for="fileX">Cargar archivo X.csv:</label>
+                <input type="file" id="fileX" name="fileX">
+        
+                <label for="fileY">Cargar archivo y.csv:</label>
+                <input type="file" id="fileY" name="fileY">
+        
+                <button type="submit">Entrenar Modelo</button>
+            </form>
+    
+            <h2>Progreso</h2>
+            <h3>Cargando los datos</h3>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressX"></div>
+                <div class="progress-label" id="labelX">0%</div>
+            </div>
+            <h3>Separando los datos</h3>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressY"></div>
+                <div class="progress-label" id="labelY">0%</div>
+            </div>
+            <h3>Entrenando el Modelo</h3>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressTraining"></div>
+                <div class="progress-label" id="labelTraining">0%</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const formData = document.getElementById('data-form');
+        const resultadosDiv = document.getElementById('resultados');
+
+        formData.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const ruc = document.getElementById('ruc_proveedor').value;
+            const tipo = document.getElementById('tipo_procedimiento').value;
+            const subTotal = document.getElementById('sub_total').value;
+            const igv = document.getElementById('igv').value;
+            const acuerdo = document.getElementById('acuerdo_marco').value;
+            const year = document.getElementById('year').value;
+            const month = document.getElementById('month').value;
+            const day = document.getElementById('day').value;
+
+            // Simulación de resultados
+            resultadosDiv.innerHTML = `
+                <p><strong>RUC_PROVEEDOR:</strong> ${ruc}</p>
+                <p><strong>TIPO_PROCEDIMIENTO:</strong> ${tipo}</p>
+                <p><strong>SUB_TOTAL:</strong> ${subTotal}</p>
+                <p><strong>IGV:</strong> ${igv}</p>
+                <p><strong>ACUERDO_MARCO:</strong> ${acuerdo}</p>
+                <p><strong>Fecha:</strong> ${day}/${month}/${year}</p>
+            `;
+        });
+
+        const formSvm = document.getElementById('svm-form');
+        const progressX = document.getElementById('progressX');
+        const labelX = document.getElementById('labelX');
+        const progressY = document.getElementById('progressY');
+        const labelY = document.getElementById('labelY');
+        const progressTraining = document.getElementById('progressTraining');
+        const labelTraining = document.getElementById('labelTraining');
+        const ws = new WebSocket('ws://localhost:8080/ws');
+
+        function updateProgressBar(element, label, percent) {
+            element.style.width = percent + "%";
+            label.textContent = percent + "%";
+        }
+
+        formSvm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const alpha = document.getElementById('alpha').value;
+            const epochs = document.getElementById('epochs').value;
+            const fileX = document.getElementById('fileX').files[0];
+            const fileY = document.getElementById('fileY').files[0];
+
+            // Leer y cargar archivo X
+            const readerX = new FileReader();
+            readerX.onloadstart = () => updateProgressBar(progressX, labelX, 0);
+            readerX.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    updateProgressBar(progressX, labelX, percent);
+                }
+            };
+            readerX.onloadend = () => updateProgressBar(progressX, labelX, 100);
+
+            // Leer y cargar archivo Y
+            const readerY = new FileReader();
+            readerY.onloadstart = () => updateProgressBar(progressY, labelY, 0);
+            readerY.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    updateProgressBar(progressY, labelY, percent);
+                }
+            };
+            readerY.onloadend = () => updateProgressBar(progressY, labelY, 100);
+
+            // Cuando ambos archivos se hayan cargado, se envían al servidor
+            readerX.onload = () => {
+                const dataX = readerX.result;
+                readerY.onload = () => {
+                    const dataY = readerY.result;
+                    // Iniciar la barra de progreso de entrenamiento
+                    updateProgressBar(progressTraining, labelTraining, 20);
+
+                    // Enviar los datos al servidor vía WebSocket
+                    const message = JSON.stringify({ alpha, epochs, dataX, dataY });
+                    ws.send(message);
+
+                    // Actualizar barra de progreso mientras se espera la respuesta
+                    let trainingProgress = 20;
+                    const interval = setInterval(() => {
+                        trainingProgress += 10;
+                        if (trainingProgress >= 90) clearInterval(interval);
+                        updateProgressBar(progressTraining, labelTraining, trainingProgress);
+                    }, 500);
+                };
+                readerY.readAsText(fileY);
+            };
+            readerX.readAsText(fileX);
+        });
+
+        // Mostrar los resultados enviados desde el servidor
+        ws.onmessage = function(event) {
+            const serverMessage = event.data;
+            updateProgressBar(progressTraining, labelTraining, 100); // Completar la barra de progreso al recibir el resultado
+            resultadosDiv.innerHTML = `<p>${serverMessage}</p>`;
+        };
+
+        ws.onerror = function(error) {
+            console.error("WebSocket error: ", error);
+        };
+    </script>
+
+</body>
+</html>
